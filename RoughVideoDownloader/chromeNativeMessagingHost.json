@@ -1,0 +1,9 @@
+{
+  "name": "softstone.av.rough_video_downloader",
+  "description": "The downloader, not the videos, is rough.",
+  "path": "RoughVideoDownloader.exe",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://dioabmlhjljcnokkioimkcffldajbhgb/"
+  ]
+}
