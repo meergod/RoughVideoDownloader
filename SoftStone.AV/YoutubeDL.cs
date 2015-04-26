@@ -75,11 +75,8 @@ namespace SoftStone.AV {
           return resultPath;
         }
       } catch(ProcessExitFailureException err) {
-        var prefixPattern = "ERROR: Unsupported URL: ";
-        var unsupported = err.stderrLines.LastOrDefault(i => i.StartsWith(prefixPattern));
-        if(unsupported != null) throw new UnsupportedUrlException(
-          Regex.Match(unsupported, prefixPattern + "(.+)$").Groups[1].Value);
-        else throw;
+        ThrowIfUnsupport(err);
+        throw;
       }
     }
 
@@ -95,7 +92,10 @@ namespace SoftStone.AV {
           IEnumerable<string> queryResult = null;
           try {
             queryResult = this.query("-J -i");
-          } catch(ProcessExitFailureException err) { queryResult = err.stdoutLines; }
+          } catch (ProcessExitFailureException err) {
+            ThrowIfUnsupport(err);
+            queryResult = err.stdoutLines;
+          }
           var info = new PlaylistInfo();
           info.DeserializeJSON<PlaylistInfo, PlaylistInfo.JSON>(queryResult.JoinAsString("\n"));
           this._playlistInfo = info;
@@ -177,6 +177,13 @@ namespace SoftStone.AV {
       info.DeserializeJSON<ExtractionInfo, ExtractionInfo.JSON>(this.query("-j").JoinAsString("\n"));
       this._filename = info._filename;
       if(!audioOnly) this._defaultBestViedoQuality = new VideoFormat(info.format);
+    }
+    void ThrowIfUnsupport(ProcessExitFailureException err) {
+      var prefixPattern = "ERROR: Unsupported URL: ";
+      var unsupported = err.stderrLines.LastOrDefault(i => i.StartsWith(prefixPattern));
+      if (unsupported != null) throw new UnsupportedUrlException(
+        Regex.Match(unsupported, prefixPattern + "(.+)$").Groups[1].Value
+      );
     }
     protected override SimpleRedirectedProcess newProcess(string additionalArg = null) {
       var p = base.newProcess(additionalArg + " " + this.url.AbsoluteUri);
