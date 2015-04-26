@@ -29,6 +29,16 @@ chrome.contextMenus.create({
 //    else if(clickInfo.frameUrl) urlToParse = clickInfo.frameUrl;
     else urlToParse = clickInfo.pageUrl;
 
+    var iGoogleDotCom = urlToParse.indexOf("google.com");
+    var ampersandUrlEquals = "&url=";
+    var iAmpersandUrlEquals = urlToParse.indexOf(ampersandUrlEquals);
+    if(iGoogleDotCom > -1 && iAmpersandUrlEquals > iGoogleDotCom) {
+      var iRealUrlStart = iAmpersandUrlEquals + ampersandUrlEquals.length;
+      urlToParse = decodeURIComponent(
+        urlToParse.substring(iRealUrlStart, urlToParse.indexOf("&", iRealUrlStart))
+      );
+    }
+
     urlParser.href = urlToParse;
     if(hostsToParseByFlvcd.indexOf(urlParser.hostname) == -1) {
       chrome.tabs.create({

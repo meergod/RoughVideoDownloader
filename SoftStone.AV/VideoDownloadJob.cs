@@ -42,7 +42,7 @@ namespace SoftStone.AV {
     public abstract string name { get; }
     public string doit() {
       try {
-        Environment.Utility.KeepComputerAwake();
+        Environment.Utils.KeepComputerAwake();
         this.locked = true; this.serialize();
         var downloadedPath = this._doit();
         this.unlock();
@@ -54,7 +54,7 @@ namespace SoftStone.AV {
         throw;
       } finally {
         this.unlock();
-        Environment.Utility.KeepComputerAwake(false);
+        Environment.Utils.KeepComputerAwake(false);
       }
     }
     public void Dispose() { this.unlock(); }
@@ -158,7 +158,7 @@ namespace SoftStone.AV {
     protected override VideoDownloadJob loadSaved(FileInfo savedJobFile) {
       var savedJob = Deserialize(savedJobFile);
       if(this.name != savedJob.name || this._items.Length != savedJob._items.Length
-        || !SoftStone.Utility.AllOrNoneIsNull(this.parsingUrl, savedJob.parsingUrl)
+        || !SoftStone.Utils.AllOrNoneIsNull(this.parsingUrl, savedJob.parsingUrl)
         || (this.parsingUrl != null && this.parsingUrl != savedJob.parsingUrl))
         throw new SavedJobException(
           SavedJobException.ErrorTypes.FilenameConflicted, savedJob.jobFilePath);

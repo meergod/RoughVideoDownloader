@@ -40,9 +40,9 @@ namespace SoftStone.AV.RoughVideoDownloader {
       Action<string> toStdout = msg => { if(msg != null) Console.Out.WriteLine(msg); };
       Action<string> toStderr = msg => { if(msg != null) Console.Error.WriteLine(msg); };
       Action<string> toLogAndStderr = msg => { if(logLines.Any()) toLog(msg); toStderr(msg); };
-      var consoleWindow = Environment.Utility.GetConsoleWindow();
+      var consoleWindow = Environment.Utils.GetConsoleWindow();
       try {
-        Environment.Utility.ShowWindow(consoleWindow, Environment.ShowWindowCmd.MINIMIZE);
+        Environment.Utils.ShowWindow(consoleWindow, Environment.ShowWindowCmd.MINIMIZE);
         var destPath = "";
         using(var job = VideoDownloadJob.load(new FileInfo(args[0]), true)) {
           logPath = Path.Combine(VideoDownloadJob.rootDir.FullName, job.name + ".log");
@@ -86,7 +86,7 @@ namespace SoftStone.AV.RoughVideoDownloader {
         }
         allOk = true;
         if(!VideoDownloadJob.rootDir.EnumerateFileSystemInfos().Any()) VideoDownloadJob.rootDir.Delete();
-        Environment.Utility.clearConsole();
+        Environment.Utils.clearConsole();
         toStdout("Downloaded: " + destPath.DoubleQutoe());
       } catch(PartedVideoDownloadJob.IncompeletedException err) {
         using(var browser = Process.Start(err.urlForRenewal.OriginalString)) { }
@@ -102,13 +102,13 @@ namespace SoftStone.AV.RoughVideoDownloader {
       } catch(Exception err) {
         var errMsg = err.ToString();
         if(err is YoutubeDL.UnsupportedUrlException || err is VideoDownloadJob.SavedJobException) {
-          errMsg = err.Message; Environment.Utility.clearConsole();
+          errMsg = err.Message; Environment.Utils.clearConsole();
         }
         toLogAndStderr(errMsg);
       } finally {
         if(logLines.Any() && !allOk) File.WriteAllLines(logPath, logLines);
         if(showConsoleAtEnd) {
-          Environment.Utility.ShowWindow(consoleWindow, Environment.ShowWindowCmd.RESTORE);
+          Environment.Utils.ShowWindow(consoleWindow, Environment.ShowWindowCmd.RESTORE);
           Console.ReadKey(false);
         }
       }

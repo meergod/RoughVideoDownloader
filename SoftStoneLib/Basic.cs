@@ -80,7 +80,7 @@ namespace SoftStone {
       return "[" + datetimeValue.ToString() + "]";
     }
   }
-  public static class Utility {
+  public static class Utils {
     public static bool IsNullOrEmpty<T>(this IEnumerable<T> array) {
       return array == null || !array.Any();
     }
@@ -110,13 +110,13 @@ namespace SoftStone {
   public interface ShadowDeserializable<S> { void ShadowDeserialize(S shadow); }
 
   namespace Environment {
-    public static class Utility {
+    public static class Utils {
       [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
       static extern ThreadExecutionState SetThreadExecutionState(ThreadExecutionState esFlags);
-      public static ThreadExecutionState KeepComputerAwake(bool? stop = null) {
-        if(stop == null) return SetThreadExecutionState(
+      public static ThreadExecutionState KeepComputerAwake(bool? flag = null) {
+        if(flag == null) return SetThreadExecutionState(
           ThreadExecutionState.SYSTEM_REQUIRED | ThreadExecutionState.CONTINUOUS);
-        else if(stop.Value) return SetThreadExecutionState(
+        else if(flag.Value) return SetThreadExecutionState(
           ThreadExecutionState.DISPLAY_REQUIRED | ThreadExecutionState.CONTINUOUS);
         return SetThreadExecutionState(ThreadExecutionState.CONTINUOUS);
       }
