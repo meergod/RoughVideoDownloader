@@ -177,6 +177,9 @@ namespace SoftStone.AV {
         } catch(ProcessExitFailureException err) {
           if(err.stderrLines.Contains(
             "ERROR: unable to download video data: The read operation timed out"
+          ) || err.stderrLines.Any(i =>
+            i.StartsWith("ERROR: Unable to download webpage: <urlopen error [WinError 10060]")
+            && i.Contains("(caused by URLError(TimeoutError(10060,")
           )) {
             timesTried += 1; if(timesTried > this.timesToRetryIfTimedOut) throw;
           } else throw;
