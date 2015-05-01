@@ -44,7 +44,7 @@ namespace SoftStone.AV.RoughVideoDownloader {
       try {
         Environment.Utils.ShowWindow(consoleWindow, Environment.ShowWindowCmd.MINIMIZE);
         var destPath = "";
-        using(var job = VideoDownloadJob.load(new FileInfo(args[0]), true)) {
+        using(var job = VideoDownloadJob.load(new FileInfo(args[0]))) {
           logPath = Path.Combine(VideoDownloadJob.rootDir.FullName, job.name + ".log");
           AppDomain.CurrentDomain.ProcessExit += (s, e) => { job.Dispose(); };
           Console.CancelKeyPress += (s, e) => { job.Dispose(); };
@@ -85,7 +85,10 @@ namespace SoftStone.AV.RoughVideoDownloader {
           FileSystem.Utils.Move(downloadedPath, destPath);
         }
         allOk = true;
-        if(!VideoDownloadJob.rootDir.EnumerateFileSystemInfos().Any()) VideoDownloadJob.rootDir.Delete();
+        Utils.DontWorry(() => {
+          File.Delete(args[0]);
+          if(!VideoDownloadJob.rootDir.EnumerateFileSystemInfos().Any()) VideoDownloadJob.rootDir.Delete();
+        });
         Environment.Utils.clearConsole();
         toStdout("Downloaded: " + destPath.DoubleQutoe());
       } catch(PartedVideoDownloadJob.IncompeletedException err) {
@@ -106,10 +109,27 @@ namespace SoftStone.AV.RoughVideoDownloader {
         }
         toLogAndStderr(errMsg);
       } finally {
-        if(logLines.Any() && !allOk) File.WriteAllLines(logPath, logLines);
+        var logWritten = false;
+        if(logLines.Any() && !allOk) {
+          File.WriteAllLines(logPath, logLines);
+          logWritten = true;
+        }
         if(showConsoleAtEnd) {
           Environment.Utils.ShowWindow(consoleWindow, Environment.ShowWindowCmd.RESTORE);
-          Console.ReadKey(false);
+          if(!allOk) {
+            while(true) {
+              Console.WriteLine();
+              if(logWritten) Console.WriteLine("Press L to open log file.");
+              Console.Write("Press R to retry. Press anything else to exit.");
+              var keyPressed = Console.ReadKey(true).Key;
+              if(logWritten && keyPressed == ConsoleKey.L) {
+                using(Process.Start(logPath)) { }
+              } else {
+                if(keyPressed == ConsoleKey.R) using(Process.Start(exePath.fullPath, args[0])) { }
+                break;
+              }
+            }
+          } else Console.ReadKey();
         }
       }
     }

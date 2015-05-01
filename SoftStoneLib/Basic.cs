@@ -10,7 +10,7 @@ using System.Text;
 using System.Web.Script.Serialization;
 
 namespace SoftStone {
-  public static class StringUtility {
+  public static class StringUtils {
     public static bool IsNullOrEmpty(this string value) { return string.IsNullOrEmpty(value); }
     public static bool IsNullOrWhiteSpace(this string value) { return string.IsNullOrWhiteSpace(value); }
 
@@ -92,6 +92,10 @@ namespace SoftStone {
         if(isnull != null && isnull != currentIsnull) return false; else isnull = currentIsnull;
       }
       return true;
+    }
+
+    public static void DontWorry(Action action) {
+      try { action(); } catch(Exception) { }
     }
 
     public static void Raise<T>(this EventHandler<T> handler, object sender, T e)
@@ -311,21 +315,6 @@ namespace SoftStone {
 
       List<string> _commonArgs = new List<string>();
       SimpleRedirectedProcess p { get; set; }
-      /*
-      protected virtual int executeProcess(SimpleRedirectedProcess p) {
-        try {
-          p.Starting += this.OnProcessStarting;
-          p.OutputDataReceived += this.OnStdout;
-          p.ErrorDataReceived += this.OnStderr;
-          return p.Start();
-        } catch(Exception) {
-          p.Starting -= this.OnProcessStarting;
-          p.OutputDataReceived -= this.OnStdout;
-          p.ErrorDataReceived -= this.OnStderr;
-          throw;
-        }
-      }
-       */
     }
   }
 }

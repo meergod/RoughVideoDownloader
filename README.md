@@ -18,7 +18,7 @@ Installation is a bit hassle. This is because extension developers are demanded 
 1. Execute [RoughVideoDownloader.msi](https://github.com/casinero/RoughVideoDownloader/raw/master/RoughVideoDownloader/Setup/Express/SingleImage/DiskImages/DISK1/RoughVideoDownloader.msi).
 2. Open the [Extensions page of Chrome](chrome://extensions/) and activate `Developer mode`.
 3. Open `%appdata%\RoughVideoDownloader` folder in your Windows, drag the `ChromeExtension` sub-folder icon onto anywhere in Chrome's Extensions page, and then copy the value of the extension ID shown.
- - After this, each time you open Chrome there'll be a warning at the top-right corner asking you to "Disable developer mode extensions", which means to disable extensions not installed from Chrome Web Store. As you can see you have to click `Cancel` and again this inconvenience is due to Google.
+ - After this, each time you open Chrome there'll be a warning at the top-right corner asking you to "Disable developer mode extensions", which means to disable extensions not installed from Chrome Web Store. As you can see you have to click `Cancel`. Again this inconvenience is due to Google.
 4. Back to `%appdata%\RoughVideoDownloader` folder, open `chromeNativeMessagingHost.json` with any text editor, replace the value between `"chrome-extension://` and `/"` (in `allowed_origins` section) with the ID just copied in the previous step, and save the file.
  - This has to be done every time you reinstall this software for whatever reasons, including version update (if that ever happens).
 5. Close and restart Chrome before making first downloading.
@@ -29,8 +29,11 @@ If you do download videos from Chinese video sites, go to http://www.flvcd.com/m
 ## Usage
 Simply right click on a video page or on a link to a video page, and then click `RoughVideoDownloader` in the context menu. Then,
 
-- a page shows up offering options to download only audio, and/or only single video even if the video page is part of a playlist. After clicking `Start Download`, youtube-dl will be started doing its job in a minimized window.
+- a page shows up offering some options. After clicking `Start Downloading`, youtube-dl will be started doing its job in a minimized window.
 - but if the page you specified belongs to selected Chinese sites, instead a tab would open aside, in which `flvcd.com/parse.php` parses the video page. Downloading starts in a minimized window if parsed successfully, or the parsing page shows up describing what went wrong (in Chinese).
- - If downloading on one or more of the URLs fails or has been idle for certain minutes (due to network issue, for example), the parsing page opens again to update the URL(s) and re-download those failed parts. (If Chrome is not your default web browser then this won't work.)
+ - If downloading on one or more of the URLs fails or has been idle for certain minutes (due to network issue, for example), the parsing page opens in Chrome again to update the URL(s) and re-download those failed parts. (If Chrome is not your default web browser then this won't work.)
 
-Temporary downloading data are put (and later cleared if no error occurs) in the `VideoDownloadJob` folder under your default Downloads folder, and the successfully downloaded file (or folder in the case of playlist) are moved right into your Downloads. In the end, the minimized window shows up telling you the success or errors of the downloading.
+#### Output
+- When downloading, temporary data are placed in `VideoDownloadJob` folder under your default Downloads folder. They'll be cleared later if no error occurs.
+- If there's an error, the window shows up with error logs. You can press R key to try again if you believe it's just a temporary error such as a temporary network issue.
+- Successfully downloaded file (or folder in the case of playlist) is in your default Downloads folder.

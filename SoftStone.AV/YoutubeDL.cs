@@ -106,7 +106,8 @@ namespace SoftStone.AV {
     VideoFormat _defaultBestViedoQuality, _possibleBestViedoQuality;
     VideoFormat defaultBestViedoQuality {
       get {
-        if(this._defaultBestViedoQuality == null) extractJson();
+        if(this._defaultBestViedoQuality == null)
+          this._defaultBestViedoQuality = new VideoFormat(this.info.format);
         return this._defaultBestViedoQuality;
       }
     }
@@ -120,8 +121,18 @@ namespace SoftStone.AV {
     }
     string _filename; string filename {
       get {
-        if(this._filename == null) extractJson();
+        if(this._filename == null) this._filename = this.info._filename;
         return this._filename;
+      }
+    }
+    ExtractionInfo _info; ExtractionInfo info {
+      get {
+        if(this._info == null) {
+          var info = new ExtractionInfo();
+          info.DeserializeJSON<ExtractionInfo, ExtractionInfo.JSON>(this.query("-j").JoinAsString("\n"));
+          this._info = info;
+        }
+        return this._info;
       }
     }
 
@@ -152,7 +163,7 @@ namespace SoftStone.AV {
         if(!matched.Success)
           matched = Regex.Match(stdoutContent, @"^\[.+\] Destination: (.+)$", RegexOptions.Multiline);
         if(!matched.Success)
-          matched = Regex.Match(stdoutContent, @"^\[download\] (.+) has already been downloaded$"
+          matched = Regex.Match(stdoutContent, @"^\[download\] (.+) has already been downloaded and merged$"
             , RegexOptions.Multiline);
         if(!matched.Success) throw new NotSupportedException();
         return matched.Groups[1].Value;
@@ -171,12 +182,6 @@ namespace SoftStone.AV {
           } else throw;
         }
       } while(true);
-    }
-    void extractJson() {
-      var info = new ExtractionInfo();
-      info.DeserializeJSON<ExtractionInfo, ExtractionInfo.JSON>(this.query("-j").JoinAsString("\n"));
-      this._filename = info._filename;
-      if(!audioOnly) this._defaultBestViedoQuality = new VideoFormat(info.format);
     }
     void ThrowIfUnsupport(ProcessExitFailureException err) {
       var prefixPattern = "ERROR: Unsupported URL: ";

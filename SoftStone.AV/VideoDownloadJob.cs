@@ -14,30 +14,22 @@ namespace SoftStone.AV {
     public IEnumerable<string> errors { get { return this._errors.AsReadOnly(); } }
     private List<string> _errors { get; set; }
 
-    public static VideoDownloadJob load(FileInfo newJobFile, bool deleteNewJobFile) {
-      var noProblem = true;
-      try {
-        VideoDownloadJob newJob;
-        try { newJob = DirectVideoDownloadJob.Deserialize(newJobFile); } catch(Exception err1) {
-          try { newJob = PartedVideoDownloadJob.Deserialize(newJobFile); } catch(Exception err2) {
-            throw new AggregateException(err1, err2);
-          }
+    public static VideoDownloadJob load(FileInfo newJobFile) {
+      VideoDownloadJob newJob;
+      try { newJob = DirectVideoDownloadJob.Deserialize(newJobFile); } catch(Exception err1) {
+        try { newJob = PartedVideoDownloadJob.Deserialize(newJobFile); } catch(Exception err2) {
+          throw new AggregateException(err1, err2);
         }
-
-        if(!rootDir.Exists) return newJob;
-        var savedJobFile = new FileInfo(newJob.jobFilePath);
-        if(!savedJobFile.Exists) return newJob;
-        var savedJob = newJob.loadSaved(savedJobFile);
-        if(savedJob.locked)
-          throw new SavedJobException(SavedJobException.ErrorTypes.Locked, savedJob.jobFilePath);
-
-        return newJob;
-      } catch(Exception) {
-        noProblem = false;
-        throw;
-      } finally {
-        if(noProblem && deleteNewJobFile) newJobFile.Delete();
       }
+
+      if(!rootDir.Exists) return newJob;
+      var savedJobFile = new FileInfo(newJob.jobFilePath);
+      if(!savedJobFile.Exists) return newJob;
+      var savedJob = newJob.loadSaved(savedJobFile);
+      if(savedJob.locked)
+        throw new SavedJobException(SavedJobException.ErrorTypes.Locked, savedJob.jobFilePath);
+
+      return newJob;
     }
     public abstract string name { get; }
     public string doit() {
