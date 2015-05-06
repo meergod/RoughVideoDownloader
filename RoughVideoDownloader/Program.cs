@@ -34,6 +34,7 @@ namespace SoftStone.AV.RoughVideoDownloader {
       #endregion
 
       bool allOk = false, showConsoleAtEnd = true;
+      Exception exception = null;
       var logPath = "";
       var logLines = new List<string>();
       Action<string> toLog = msg => { if(msg != null) logLines.Add(msg); };
@@ -104,8 +105,9 @@ namespace SoftStone.AV.RoughVideoDownloader {
       } catch(ProcessExitFailureException) {
       } catch(Exception err) {
         var errMsg = err.ToString();
-        if(err is YoutubeDL.UnsupportedUrlException || err is VideoDownloadJob.SavedJobException) {
+        if(err is VideoDownloadJob.SavedJobException || err is YoutubeDL.UnsupportedUrlException) {
           errMsg = err.Message; Environment.Utils.clearConsole();
+          exception = err;
         }
         toLogAndStderr(errMsg);
       } finally {
@@ -119,11 +121,18 @@ namespace SoftStone.AV.RoughVideoDownloader {
           if(!allOk) {
             while(true) {
               Console.WriteLine();
-              if(logWritten) Console.WriteLine("Press L to open log file.");
+              var procToStart = "";
+              if(exception is YoutubeDL.UnsupportedUrlException) {
+                Console.WriteLine("Press L to browse the URL.");
+                procToStart = (exception as YoutubeDL.UnsupportedUrlException).url;
+              } else if(logWritten) {
+                Console.WriteLine("Press L to open log file.");
+                procToStart = logPath;
+              }
               Console.Write("Press R to retry. Press anything else to exit.");
               var keyPressed = Console.ReadKey(true).Key;
-              if(logWritten && keyPressed == ConsoleKey.L) {
-                using(Process.Start(logPath)) { }
+              if(procToStart != "" && keyPressed == ConsoleKey.L) {
+                using(Process.Start(procToStart)) { }
               } else {
                 if(keyPressed == ConsoleKey.R) using(Process.Start(exePath.fullPath, args[0])) { }
                 break;

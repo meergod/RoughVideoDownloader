@@ -175,12 +175,14 @@ namespace SoftStone.AV {
         try {
           using(var p = this.newProcess(additionalArg)) { p.Start(); return execution(p); }
         } catch(ProcessExitFailureException err) {
-          if(err.stderrLines.Contains(
-            "ERROR: unable to download video data: The read operation timed out"
+          if(err.stderrLines.Any(i =>
+            i.StartsWith("ERROR: Unable to download ")
+            && i.Contains(": <urlopen error [")
+            && i.Contains("(caused by URLError(")
           ) || err.stderrLines.Any(i =>
-            i.StartsWith("ERROR: Unable to download webpage: <urlopen error [WinError 10060]")
-            && i.Contains("(caused by URLError(TimeoutError(10060,")
-          )) {
+            i.StartsWith("ERROR: unable to download video data: ") && i.EndsWith(" timed out")
+          ) || err.stderrLines.Any(i => i.StartsWith("ERROR: content too short (expected "))
+          ) {
             timesTried += 1; if(timesTried > this.timesToRetryIfTimedOut) throw;
           } else throw;
         }
