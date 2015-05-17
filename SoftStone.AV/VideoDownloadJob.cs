@@ -324,4 +324,14 @@ namespace SoftStone.AV {
         : base() { this.urlForRenewal = job.parsingUrl; }
     }
   }
+
+  public class DownloadedPaths {
+    public FileSystemInfo mainPath { get; private set; }
+    public IEnumerable<FileInfo> subtitlePaths { get; private set; }
+    public DownloadedPaths(FileSystemInfo mainPath, IEnumerable<FileInfo> subtitlePaths = null) {
+      this.mainPath = mainPath;
+      this.subtitlePaths = subtitlePaths == null ? Enumerable.Empty<FileInfo>()
+        : subtitlePaths.ToList().AsReadOnly();
+    }
+  }
 }

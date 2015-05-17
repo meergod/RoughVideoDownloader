@@ -23,30 +23,43 @@ namespace SoftStone.AV {
       if(this.noPlaylist) this.commonArgs.Add("--no-playlist");
       if(this._OnStdout != null && this._OnStderr != null && this.verbose) this.commonArgs.Add("-v");
 
+      var resultPath = "";
       try {
         if(this.playlistInfo.isPlaylist) {
-          var resultPath = Path.Combine(this.saveDir.FullName
-            , filenamePrefix + this.playlistInfo.title.replaceInvalidFileNameChars(" "));
-          if(!this.playlistInfo.id.IsNullOrWhiteSpace())
-            resultPath += " _" + this.playlistInfo.id.replaceInvalidFileNameChars();
-          if(!filenamePrefix.IsNullOrEmpty()) resultPath += " -" + this.workingDirName;
+          var doneEntries = new List<DoneEntry>();
+          var doneEntriesFilePath = Path.Combine(this.WorkingDir.FullName, "DoneEntries");
+          if(File.Exists(doneEntriesFilePath))
+            File.ReadAllLines(doneEntriesFilePath).Where(i => !i.IsNullOrWhiteSpace()).ToList()
+              .ForEach(i => doneEntries.Add(new DoneEntry(i)));
+
           var errors = new List<PlaylistDownloadExceptionItem>();
-          foreach(var entry in this.playlistInfo.entries) {
+          foreach(var entry in
+            this.playlistInfo.entries.Where(i => !doneEntries.Any(j => j.index == i.playlist_index))
+          ) {
             try {
               var subDownload = new YoutubeDL(
                 new Uri(entry.webpage_url), this.audioOnly, this.noPlaylist
-              ) { saveDir = new DirectoryInfo(resultPath), verbose = this.verbose };
+              ) { saveDir = this.WorkingDir, verbose = this.verbose };
               subDownload.OnProcessStarting += this._OnProcessStarting;
               subDownload.OnStdout += this._OnStdout;
               subDownload.OnStderr += this._OnStderr;
-              subDownload.download(
-                entry.playlist_index.padByTotal(this.playlistInfo.entries.Count()) + ") ");
+
+              var doneEntry = new DoneEntry(entry.playlist_index, subDownload.download(
+                entry.playlist_index.padByTotal(this.playlistInfo.entries.Count()) + ") "));
+              File.AppendAllText(doneEntriesFilePath, doneEntry + System.Environment.NewLine);
+              doneEntries.Add(doneEntry);
             } catch(Exception err) { errors.Add(new PlaylistDownloadExceptionItem(entry, err)); }
           }
           if(!errors.Any()) {
-            this.WorkingDir.Delete();
-            return resultPath;
-          } else throw new PlaylistDownloadException(this.playlistInfo, errors, resultPath);
+            resultPath = Path.Combine(this.saveDir.FullName
+              , filenamePrefix + this.playlistInfo.title.replaceInvalidFileNameChars(" "));
+            if(!this.playlistInfo.id.IsNullOrWhiteSpace())
+              resultPath += " _" + this.playlistInfo.id.replaceInvalidFileNameChars();
+            foreach(var entry in doneEntries) {
+              FileSystem.Utils.Move(entry.downloadedPath
+                , Path.Combine(resultPath, Path.GetFileName(entry.downloadedPath)));
+            }
+          } else throw new PlaylistDownloadException(this.playlistInfo, errors);
         } else {
           string additionalArg = "", safeFilename = "";
           try {
@@ -65,17 +78,19 @@ namespace SoftStone.AV {
             } else throw;
           }
           this.commonArgs.Add(additionalArg);
-          var resultPath = Path.Combine(
-            this.saveDir.FullName
-            , filenamePrefix + Path.GetFileNameWithoutExtension(this.filename)
-              + Path.GetExtension(safeFilename)
+          resultPath = Path.Combine(this.saveDir.FullName
+            , filenamePrefix + Path.GetFileNameWithoutExtension(this.filename) + Path.GetExtension(safeFilename)
           );
           File.Move(Path.Combine(this.WorkingDir.FullName, safeFilename), resultPath);
-          this.WorkingDir.Delete(true);
-          return resultPath;
         }
+        this.WorkingDir.Delete(true);
+        return resultPath;
       } catch(ProcessExitFailureException err) {
-        ThrowIfUnsupport(err);
+        var prefixPattern = "ERROR: Unsupported URL: ";
+        var unsupported = err.stderrLines.LastOrDefault(i => i.StartsWith(prefixPattern));
+        if(unsupported != null) throw new UnsupportedUrlException(
+          Regex.Match(unsupported, prefixPattern + "(.+)$").Groups[1].Value
+        );
         throw;
       }
     }
@@ -89,16 +104,13 @@ namespace SoftStone.AV {
     PlaylistInfo _playlistInfo; PlaylistInfo playlistInfo {
       get {
         if(this._playlistInfo == null) {
-          IEnumerable<string> queryResult = null;
           try {
-            queryResult = this.query("-J -i");
-          } catch (ProcessExitFailureException err) {
-            ThrowIfUnsupport(err);
-            queryResult = err.stdoutLines;
+            this._playlistInfo = Utils.DeserializeJSON<PlaylistInfo, PlaylistInfo.JSON>(this.query("-J -i").ToArray());
+          } catch(ProcessExitFailureException err) {
+            try {
+              this._playlistInfo = Utils.DeserializeJSON<PlaylistInfo, PlaylistInfo.JSON>(err.stdoutLines.ToArray());
+            } catch(Exception) { throw err; }
           }
-          var info = new PlaylistInfo();
-          info.DeserializeJSON<PlaylistInfo, PlaylistInfo.JSON>(queryResult.JoinAsString("\n"));
-          this._playlistInfo = info;
         }
         return this._playlistInfo;
       }
@@ -127,11 +139,8 @@ namespace SoftStone.AV {
     }
     ExtractionInfo _info; ExtractionInfo info {
       get {
-        if(this._info == null) {
-          var info = new ExtractionInfo();
-          info.DeserializeJSON<ExtractionInfo, ExtractionInfo.JSON>(this.query("-j").JoinAsString("\n"));
-          this._info = info;
-        }
+        if(this._info == null)
+          this._info = Utils.DeserializeJSON<ExtractionInfo, ExtractionInfo.JSON>(this.query("-j").ToArray());
         return this._info;
       }
     }
@@ -153,11 +162,11 @@ namespace SoftStone.AV {
     public override string ExeName { get { return "py"; } }
 
     IEnumerable<string> query(string additionalArg = null) {
-      return execute(additionalArg, p => { return p.stdoutLines; });
+      return execute(additionalArg, executedProcess => executedProcess.stdoutLines);
     }
     string executeDownload(string additionalArg = null) {
-      return execute(additionalArg + " --restrict-filenames", p => {
-        var stdoutContent = p.stdoutLines.Reverse().JoinAsString("\n");
+      return execute(additionalArg + " --restrict-filenames", executedProcess => {
+        var stdoutContent = executedProcess.stdoutLines.Reverse().JoinAsString("\n");
         var matched =
           Regex.Match(stdoutContent, @"^\[.+\] Merging formats into ""(.+)""$", RegexOptions.Multiline);
         if(!matched.Success)
@@ -169,16 +178,17 @@ namespace SoftStone.AV {
         return matched.Groups[1].Value;
       });
     }
-    T execute<T>(string additionalArg, Func<SimpleRedirectedProcess, T> execution) {
+    T execute<T>(string additionalArg, Func<SimpleRedirectedProcess, T> getInfoFromExecutedProcess) {
       int timesTried = 0;
       do {
         try {
-          using(var p = this.newProcess(additionalArg)) { p.Start(); return execution(p); }
+          using(var p = this.newProcess(additionalArg)) {
+            p.Start(); return getInfoFromExecutedProcess(p);
+          }
         } catch(ProcessExitFailureException err) {
           if(err.stderrLines.Any(i =>
             i.StartsWith("ERROR: Unable to download ")
-            && i.Contains(": <urlopen error [")
-            && i.Contains("(caused by URLError(")
+            && i.Contains(": <urlopen error ") && i.Contains("(caused by URLError(")
           ) || err.stderrLines.Any(i =>
             i.StartsWith("ERROR: unable to download video data: ") && i.EndsWith(" timed out")
           ) || err.stderrLines.Any(i => i.StartsWith("ERROR: content too short (expected "))
@@ -187,13 +197,6 @@ namespace SoftStone.AV {
           } else throw;
         }
       } while(true);
-    }
-    void ThrowIfUnsupport(ProcessExitFailureException err) {
-      var prefixPattern = "ERROR: Unsupported URL: ";
-      var unsupported = err.stderrLines.LastOrDefault(i => i.StartsWith(prefixPattern));
-      if (unsupported != null) throw new UnsupportedUrlException(
-        Regex.Match(unsupported, prefixPattern + "(.+)$").Groups[1].Value
-      );
     }
     protected override SimpleRedirectedProcess newProcess(string additionalArg = null) {
       var p = base.newProcess(additionalArg + " " + this.url.AbsoluteUri);
@@ -207,7 +210,7 @@ namespace SoftStone.AV {
 
       public string _type { get; private set; }
       public string title { get; private set; }
-      public IEnumerable<ExtractionInfo> entries { get; set; }
+      public IEnumerable<ExtractionInfo> entries { get; private set; }
       public string id { get; private set; }
 
       public void ShadowDeserialize(PlaylistInfo.JSON shadow) {
@@ -297,6 +300,22 @@ namespace SoftStone.AV {
         return first.CompareTo(second) >= 0;
       }
       #endregion
+    }
+
+    class DoneEntry {
+      internal int index { get; private set; }
+      internal string downloadedPath { get; private set; }
+      internal DoneEntry(int index, string downloadedPath) {
+        this.index = index; this.downloadedPath = downloadedPath;
+      }
+      internal DoneEntry(string stringRepresentation) {
+        var parts = stringRepresentation.Split('\t');
+        this.index = int.Parse(parts[0]);
+        this.downloadedPath = parts[1];
+      }
+      public override string ToString() {
+        return this.index + "\t" + this.downloadedPath;
+      }
     }
 
     public class UnsupportedUrlException : NotSupportedException {

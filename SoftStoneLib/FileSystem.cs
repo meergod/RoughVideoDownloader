@@ -27,9 +27,9 @@ namespace SoftStone.FileSystem {
       try { dir.Delete(recursive); } catch(Exception) { }
     }
 
-    public static void Move(string srcPath, string dstPath) {
-      if(File.Exists(srcPath)) File.Move(srcPath, dstPath);
-      else if(Directory.Exists(srcPath)) Directory.Move(srcPath, dstPath);
+    public static void Move(string srcPath, string dstPath, bool overwrite = false) {
+      if(File.Exists(srcPath)) VBFileIO.FileSystem.MoveFile(srcPath, dstPath, overwrite);
+      else if(Directory.Exists(srcPath)) VBFileIO.FileSystem.MoveDirectory(srcPath, dstPath, overwrite);
       else throw new ArgumentException();
     }
 

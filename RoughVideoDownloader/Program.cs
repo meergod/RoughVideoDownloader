@@ -99,8 +99,9 @@ namespace SoftStone.AV.RoughVideoDownloader {
         toLogAndStderr(errs.GetType().Name + ":");
         foreach(var err in errs.exceptions) {
           toLogAndStderr("@" + err.entryInfo.playlist_index + "(" + err.entryInfo.webpage_url + ")");
-          if(err.exception is ProcessExitFailureException) toLogAndStderr(err.exception.Message);
-          else toLogAndStderr(err.exception.ToString());
+          //if(err.exception is ProcessExitFailureException) toLogAndStderr(err.exception.Message);
+          //else toLogAndStderr(err.exception.ToString());
+          toLogAndStderr(err.exception.GetType().FullName + ": " + err.exception.Message);
         }
       } catch(ProcessExitFailureException) {
       } catch(Exception err) {
