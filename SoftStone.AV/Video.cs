@@ -55,9 +55,8 @@ namespace SoftStone.AV {
           , "ffmpegConcat" + DateTime.Now.ToString("yyyyMMddHHmmssfff"));
         var outputFilePathExisted = true;
         try {
-          foreach(var file in files)
-            File.AppendAllText(listFilePath
-              , "file '" + file.FullName + "'" + System.Environment.NewLine);
+          File.WriteAllLines(listFilePath
+            , files.Select(i => "file '" + i.FullName + "'"));
           using(var process = this.newProcess(
             "-f concat -i " + listFilePath.DoubleQutoe() + " -c copy " + outputFilePath.DoubleQutoe()
           )) {

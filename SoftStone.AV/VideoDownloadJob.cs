@@ -13,6 +13,7 @@ namespace SoftStone.AV {
     public bool locked { get; private set; }
     public IEnumerable<string> errors { get { return this._errors.AsReadOnly(); } }
     private List<string> _errors { get; set; }
+    public IEnumerable<string> subtitleFilePaths { get; protected set; }
 
     public static VideoDownloadJob load(FileInfo newJobFile) {
       VideoDownloadJob newJob;
@@ -94,24 +95,36 @@ namespace SoftStone.AV {
     : VideoDownloadJob, ShadowDeserializable<DirectVideoDownloadJob.Serialization> {
     public Uri url { get; private set; }
     public bool audioOnly { get; private set; }
+    public bool writeSub { get; private set; }
+    public string subLang { get; private set; }
     public bool noPlaylist { get; private set; }
     public bool verbose { get; private set; }
+    public string command { get; private set; }
     public override string name {
       get { return YoutubeDL.getWorkingDirName(this.url, this.audioOnly, this.noPlaylist); }
     }
     public override event Action<string> onProcessStarting;
     public override event DataReceivedEventHandler onStdout, onStderr;
 
+    public IEnumerable<string> getSubtitleLanguages() {
+      var youtubeDL = new YoutubeDL(this.url, noPlaylist : this.noPlaylist);
+      return youtubeDL.getSubtitleLanguages();
+    }
+
     protected override VideoDownloadJob loadSaved(FileInfo savedJobFile) {
       return Deserialize(savedJobFile);
     }
     protected override string _doit() {
-      var youtubeDL = new YoutubeDL(this.url, this.audioOnly, this.noPlaylist) {
+      var youtubeDL = new YoutubeDL(this.url, this.audioOnly, this.noPlaylist
+        , this.writeSub, this.subLang
+      ) {
         saveDir = rootDir, verbose = this.verbose
       };
       youtubeDL.OnProcessStarting += this.onProcessStarting;
       youtubeDL.OnStdout += this.onStdout; youtubeDL.OnStderr += this.onStderr;
-      return youtubeDL.download();
+      var downloadedPath = youtubeDL.download();
+      this.subtitleFilePaths = youtubeDL.subtitleFilePaths;
+      return downloadedPath;
     }
 
     internal static DirectVideoDownloadJob Deserialize(FileInfo jobFile) {
@@ -119,21 +132,28 @@ namespace SoftStone.AV {
       job.DeserializeJSON<DirectVideoDownloadJob, DirectVideoDownloadJob.Serialization>(jobFile);
       return job;
     }
-    private DirectVideoDownloadJob() { }
     public void ShadowDeserialize(DirectVideoDownloadJob.Serialization shadow) {
       if(this.ShadowDeserialized) throw new InvalidOperationException();
+
       if(shadow.url == null || !shadow.url.IsAbsoluteUri) throw new InvalidCastException();
       this.url = shadow.url;
       this.audioOnly = shadow.audioOnly ?? false;
+      this.writeSub = shadow.writeSub ?? false;
+      this.subLang = shadow.subLang;
       this.noPlaylist = shadow.noPlaylist ?? false;
       this.verbose = shadow.verbose ?? false;
+      this.command = shadow.command;
+
       base.ShadowDeserialize(shadow);
     }
     public class Serialization : VideoDownloadJob.Serialization {
       public Uri url { get; set; }
       public bool? audioOnly { get; set; }
+      public bool? writeSub { get; set; }
+      public string subLang { get; set; }
       public bool? noPlaylist { get; set; }
       public bool? verbose { get; set; }
+      public string command { get; set; }
     }
   }
 
@@ -201,8 +221,7 @@ namespace SoftStone.AV {
       var ffmpeg = new FFmpeg();
       ffmpeg.OnProcessStarting += this.onProcessStarting;
       ffmpeg.OnStdout += this.onStdout; ffmpeg.OnStderr += this.onStderr;
-      var finalVideoFilePath = ffmpeg.join(workingDir, null, true);
-      return finalVideoFilePath;
+      return ffmpeg.join(workingDir, deleteInputDir : true); ;
     }
     const int initialPatience = 3, patienceUpperLimit = 7;
 
@@ -295,9 +314,9 @@ namespace SoftStone.AV {
       job.DeserializeJSON<PartedVideoDownloadJob, PartedVideoDownloadJob.Serialization>(jobFile);
       return job;
     }
-    private PartedVideoDownloadJob() { }
     public void ShadowDeserialize(PartedVideoDownloadJob.Serialization shadow) {
       if(this.ShadowDeserialized) throw new InvalidOperationException();
+
       if(shadow.videoTitle.IsNullOrWhiteSpace() || shadow.items.IsNullOrEmpty())
         throw new InvalidCastException();
       this.videoTitle = shadow.videoTitle;
@@ -310,6 +329,7 @@ namespace SoftStone.AV {
         items[i] = item;
       }
       this._items = items;
+
       base.ShadowDeserialize(shadow);
     }
     public class Serialization : VideoDownloadJob.Serialization {
@@ -322,16 +342,6 @@ namespace SoftStone.AV {
       public Uri urlForRenewal { get; private set; }
       public IncompeletedException(PartedVideoDownloadJob job)
         : base() { this.urlForRenewal = job.parsingUrl; }
-    }
-  }
-
-  public class DownloadedPaths {
-    public FileSystemInfo mainPath { get; private set; }
-    public IEnumerable<FileInfo> subtitlePaths { get; private set; }
-    public DownloadedPaths(FileSystemInfo mainPath, IEnumerable<FileInfo> subtitlePaths = null) {
-      this.mainPath = mainPath;
-      this.subtitlePaths = subtitlePaths == null ? Enumerable.Empty<FileInfo>()
-        : subtitlePaths.ToList().AsReadOnly();
     }
   }
 }

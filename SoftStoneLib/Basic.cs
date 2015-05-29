@@ -109,7 +109,8 @@ namespace SoftStone {
       where T: ShadowDeserializable<S> {
       target.DeserializeJSON<T, S>(File.ReadAllText(file.FullName));
     }
-    public static T DeserializeJSON<T, S>(params string[] json) where T: ShadowDeserializable<S>, new() {
+    public static T DeserializeJSON<T, S>(params string[] json)
+      where T: ShadowDeserializable<S>, new() {
       var result = new T();
       result.DeserializeJSON<T, S>(json.JoinAsString("\n"));
       return result;

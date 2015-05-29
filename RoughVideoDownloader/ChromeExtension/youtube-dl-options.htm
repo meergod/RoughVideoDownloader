@@ -6,12 +6,46 @@
   <title></title>
 </head>
 <body>
-  <form onsubmit="return false;">
-    URL: <input id="url" type="text" size="80" readonly />
-    <br /><input id="audioOnly" type="checkbox" />Audio only.
-    <br /><input id="noPlaylist" type="checkbox" checked />Do not download the whole playlist if the URL is part of a playlist.
-    <br /><button id="btnStart">Start Downloading</button>
+  <form>
+    <table>
+      <tr>
+        <td>
+          URL:
+          <input id="url" type="text" size="80" readonly />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <input id="audioOnly" type="checkbox" />Audio only.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <input id="writeSub" type="checkbox" />With subtitle.
+          <button id="btnSetDefault" type="button">Set as default</button>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          Subtitle Language(s):
+          <input id="subLang" type="text" size="30" />
+          <button id="btnListSubLangs">List</button>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <input id="noPlaylist" type="checkbox" checked />Do not download the whole playlist if the URL is part of a playlist.
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <button id="btnStart">Start Downloading</button>
+        </td>
+      </tr>
+      <tr><td id="areaSubLangs"></td></tr>
+    </table>
   </form>
+  <script src="lib/jquery-2.1.3.js"></script>
   <script src="lib/URI.js"></script>
   <script src="youtube-dl-options.js"></script>
 </body>

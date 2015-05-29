@@ -1,8 +1,15 @@
 var hostsToParseByFlvcd = [];
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   if(msg.nativeMsg) {
-    chrome.runtime.sendNativeMessage("softstone.av.rough_video_downloader", msg.nativeMsg);
-    chrome.tabs.remove(sender.tab.id);
+    var nativeMsgHost = "softstone.av.rough_video_downloader";
+    if("command" in msg.nativeMsg) {
+      chrome.runtime.sendNativeMessage(nativeMsgHost, msg.nativeMsg, function(response) {
+        chrome.tabs.sendMessage(sender.tab.id, response);
+      });
+    } else {
+      chrome.runtime.sendNativeMessage(nativeMsgHost, msg.nativeMsg);
+      chrome.tabs.remove(sender.tab.id);
+    }
   } else if(msg.hostsToParseByFlvcd) {
     hostsToParseByFlvcd = msg.hostsToParseByFlvcd;
     localStorage.setItem('hostsToParseByFlvcd', JSON.stringify(hostsToParseByFlvcd));

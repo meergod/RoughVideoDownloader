@@ -14,15 +14,27 @@ namespace SoftStone.AV.RoughVideoDownloader {
       #region Chrome native messaging host
       if(args.Any(i => i.StartsWith("chrome-extension://"))) {
         try {
-          var buffer = new byte[4];
-          using(var stdin = Console.OpenStandardInput()) {
-            stdin.Read(buffer, 0, 4);
-            var msgLen = BitConverter.ToInt32(buffer, 0);
-            buffer = new byte[msgLen];
-            stdin.Read(buffer, 0, msgLen);
+          var msg = SoftStone.Net.Utils.recvMsgFromChrome();
+          var done = true;
+          try {
+            var job = new DirectVideoDownloadJob();
+            job.DeserializeJSON<DirectVideoDownloadJob, DirectVideoDownloadJob.Serialization>(msg);
+            if(job.command == "getSubLangs")
+              SoftStone.Net.Utils.sendMsgToChrome(
+                new { subLangs = job.getSubtitleLanguages() }
+              );
+            else done = false;
+          } catch(InvalidCastException err) {
+            done = false;
+          } catch(YoutubeDL.UnsupportedUrlException) {
+            SoftStone.Net.Utils.sendMsgToChrome(new { unsupported = true });
+          } catch(ProcessExitFailureException err) {
+            SoftStone.Net.Utils.sendMsgToChrome(new { errMsg = err.Message });
           }
+          if(done) return;
+
           var jobFile = Path.GetTempFileName();
-          File.WriteAllText(jobFile, Encoding.UTF8.GetString(buffer));
+          File.WriteAllText(jobFile, msg);
           using(Process.Start(exePath.fullPath, jobFile)) { }
         } catch(Exception err) {
           File.AppendAllLines(
@@ -33,10 +45,10 @@ namespace SoftStone.AV.RoughVideoDownloader {
       }
       #endregion
 
+      var resultPath = "";
       bool allOk = false, showConsoleAtEnd = true;
       Exception exception = null;
-      var logPath = "";
-      var logLines = new List<string>();
+      var logPath = ""; var logLines = new List<string>();
       Action<string> toLog = msg => { if(msg != null) logLines.Add(msg); };
       Action<string> toStdout = msg => { if(msg != null) Console.Out.WriteLine(msg); };
       Action<string> toStderr = msg => { if(msg != null) Console.Error.WriteLine(msg); };
@@ -44,7 +56,6 @@ namespace SoftStone.AV.RoughVideoDownloader {
       var consoleWindow = Environment.Utils.GetConsoleWindow();
       try {
         Environment.Utils.ShowWindow(consoleWindow, Environment.ShowWindowCmd.MINIMIZE);
-        var destPath = "";
         using(var job = VideoDownloadJob.load(new FileInfo(args[0]))) {
           logPath = Path.Combine(VideoDownloadJob.rootDir.FullName, job.name + ".log");
           AppDomain.CurrentDomain.ProcessExit += (s, e) => { job.Dispose(); };
@@ -82,8 +93,12 @@ namespace SoftStone.AV.RoughVideoDownloader {
           job.onStderr += (s, e) => toStderr(e.Data);
 
           var downloadedPath = job.doit();
-          destPath = Path.Combine(KnownFolders.Downloads.Path, Path.GetFileName(downloadedPath));
-          FileSystem.Utils.Move(downloadedPath, destPath);
+          var saveDir = KnownFolders.Downloads.Path;
+          resultPath = Path.Combine(saveDir, Path.GetFileName(downloadedPath));
+          FileSystem.Utils.Move(downloadedPath, resultPath);
+          foreach(var subtitleFilePath in job.subtitleFilePaths ?? new string[0])
+            File.Move(subtitleFilePath
+              , Path.Combine(saveDir, Path.GetFileName(subtitleFilePath)));
         }
         allOk = true;
         Utils.DontWorry(() => {
@@ -91,7 +106,6 @@ namespace SoftStone.AV.RoughVideoDownloader {
           if(!VideoDownloadJob.rootDir.EnumerateFileSystemInfos().Any()) VideoDownloadJob.rootDir.Delete();
         });
         Environment.Utils.clearConsole();
-        toStdout("Downloaded: " + destPath.DoubleQutoe());
       } catch(PartedVideoDownloadJob.IncompeletedException err) {
         using(var browser = Process.Start(err.urlForRenewal.OriginalString)) { }
         showConsoleAtEnd = false;
@@ -139,7 +153,11 @@ namespace SoftStone.AV.RoughVideoDownloader {
                 break;
               }
             }
-          } else Console.ReadKey();
+          } else {
+            toStdout("Press ENTER to open downloaded video:");
+            toStdout(Path.GetFileName(resultPath));
+            if(Console.ReadKey(true).Key == ConsoleKey.Enter) using(Process.Start(resultPath)) { }
+          }
         }
       }
     }
